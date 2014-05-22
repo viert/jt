@@ -1,0 +1,13 @@
+Source: jt
+Section: admin
+Priority: extra
+Maintainer: Pavel Vorobyov <viert@yandex-team.ru>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+Homepage: http://guthub.com/viert/jt.git
+Vcs-Git: git://guthub.com/viert/jt.git
+
+Package: jt
+Architecture: all
+Depends: python (>=2.6), python-jinja2
+Description: Pluggable command-line jinga2 template compiler

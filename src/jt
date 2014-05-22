@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound, TemplateSyntaxError
+import argparse, os, sys
+
+JT_PLUGINS = '/usr/share/jt/plugins'
+
+def process(template, output, plugins):
+  template = os.path.abspath(template)
+
+  template_dir = os.path.dirname( template )
+  template_file = os.path.basename( template )
+
+  env = Environment(loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True)
+
+  try:
+    processor = env.get_template(template_file)
+  except TemplateNotFound:
+    print "template '%s' not found" % template
+    sys.exit(255)
+  except TemplateSyntaxError, e:
+    print "error processing template '%s': %s in %s at line %s" % ( template, e, e.filename, e.lineno )
+    sys.exit(254)
+
+  try:
+    result = processor.render(plugins)
+  except Exception, e:
+    print  "error processing template '%s': %s" % ( template, e )
+    sys.exit(1)
+
+  if output is None:
+    print result.rstrip()
+    sys.exit(0)
+  else:
+    try:
+      with open(output, "w") as of:
+        of.write(result)
+      sys.exit(0)
+    except Exception, e:
+      print "error saving output file: %s" % e
+      sys.exit(253)
+
+def load_plugins(directory, verbose):
+  directory = os.path.abspath(directory)
+
+  if not os.path.isdir(directory):
+    if verbose:
+      print "Plugin directory %s not found" % directory
+    return
+
+  plugin_files = []
+  for dirpath, dirnames, filenames in os.walk(directory):
+    for filename in filenames:
+      plugin_files.append( os.path.join(dirpath, filename) )
+
+  if not plugin_files:
+    if verbose: print "no plugins found"
+    return
+
+
+  plugins = {}
+  for filename in plugin_files:
+    name = os.path.splitext( os.path.basename(filename) )[0]
+
+    dir = os.path.dirname(filename)
+    if not dir in sys.path:
+      sys.path.append(dir)
+
+    try:
+      module = __import__(name)
+    except ImportError, e:
+      if verbose:
+        print "Can't load plugin %s: %s" % (name, e)
+      continue
+
+    if hasattr(module, '__jt_name__'):
+      name = module.__jt_name__
+
+    plugins[name] = module
+
+  if verbose:
+    print "Registered plugins: %s" % ', '.join(plugins.keys())
+
+  return plugins
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(description="Process jinga2 template")
+  parser.add_argument('template', type=str, nargs=1)
+  parser.add_argument('output', type=str, nargs='?')
+  parser.add_argument('--plugins-directory', '-P', type=str, dest='plugins_directory', default=JT_PLUGINS)
+  parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', default=False)
+  args = parser.parse_args()
+  template, output = args.template[0], args.output
+  plugins = load_plugins(args.plugins_directory, args.verbose)
+  process(template, output, plugins)
