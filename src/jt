@@ -11,7 +11,12 @@ def process(template, output, plugins):
   template_dir = os.path.dirname( template )
   template_file = os.path.basename( template )
 
-  env = Environment(loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True)
+  try:
+    env = Environment(loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True)
+  except TypeError:
+    # fallback to older version of Jinja2
+    env = Environment(loader=FileSystemLoader(template_dir), trim_blocks=True)
+
 
   try:
     processor = env.get_template(template_file)
